@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, ::before, ::after {
+    border-color: hsl(var(--border)); 
+  }
+  
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: system-ui, -apple-system, sans-serif;
+    
+    /* Important for mobile layout to feel like an app */
+    overscroll-behavior-y: none; 
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Required Variables */
+  :root {
+    --background: 210 40% 98%; 
+    --foreground: 222.2 84% 4.9%; 
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --primary: 221.2 83.2% 53.3%; 
+    --primary-foreground: 210 40% 98%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 1rem;
+  }
+}
+
+/* Safe padding for modern phones (like iPhones with the bottom bar) */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* Fix for Badge clipping on both mobile and desktop */
+.recent-scan-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #d1fae5; 
+  color: #047857;           
+  padding: 6px 12px;
+  border-radius: 9999px;     
+  font-weight: bold;
+  text-align: center;
+  height: auto; 
+  line-height: 1.1; 
+  flex-shrink: 0;
+}
+
+.recent-scan-badge .badge-count {
+  font-size: 14px;
+}
+
+.recent-scan-badge .badge-text {
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+/* Clean transparent scrollbars for data tables and main content */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
