@@ -12,8 +12,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   return (
-    // STRICT ROOT CONTAINER: Forces the app to perfectly fit the screen height and width
-    <div className="flex h-screen w-full bg-slate-50 font-sans text-slate-900 overflow-hidden">
+    // STRICT ROOT CONTAINER: Forces the app to perfectly fit the dynamic screen height and width
+    <div className="flex h-screen h-[100dvh] w-full bg-slate-50 font-sans text-slate-900 overflow-hidden">
       
       {/* --- DESKTOP SIDEBAR --- */}
       {/* Hidden on mobile (<768px), visible on desktop (>=768px) */}
@@ -37,10 +37,14 @@ export default function App() {
       </aside>
 
       {/* --- MAIN CONTENT WRAPPER --- */}
-      <div className="flex-1 flex flex-col h-full relative overflow-hidden">
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
         
         {/* MOBILE HEADER: Visible on mobile, hidden on desktop */}
-        <header className="md:hidden flex items-center gap-2 bg-white p-4 border-b border-slate-100 flex-shrink-0 shadow-sm z-10">
+        {/* Incorporates iOS status bar safe area to prevent overlapping carrier/clock */}
+        <header 
+          className="md:hidden flex items-center gap-2 bg-white px-4 pb-4 border-b border-slate-100 flex-shrink-0 shadow-sm z-10"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
+        >
           <div className="bg-blue-600 p-1.5 rounded-lg">
             <Zap className="text-white w-4 h-4 fill-current" />
           </div>
@@ -50,8 +54,8 @@ export default function App() {
         </header>
 
         {/* SCROLLABLE VIEW AREA */}
-        {/* pb-24 adds space at the bottom on mobile so content isn't hidden under the nav bar */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 pb-24 md:pb-10">
+        {/* No longer needs massive pb-24 because the nav is static inside the flexbox column */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 pb-6 md:pb-10">
           {activeTab === 'dashboard' && <DashboardView onNavigate={setActiveTab} />}
           {activeTab === 'vision' && <VisionHubView />}
           {activeTab === 'list' && <ListView />}
@@ -59,8 +63,12 @@ export default function App() {
         </main>
 
         {/* --- MOBILE BOTTOM NAVIGATION --- */}
-        {/* Visible on mobile, hidden on desktop. Fixed to the bottom of the wrapper. */}
-        <nav className="md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around items-center p-2 z-50 pb-safe shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]">
+        {/* Statically positioned at the bottom of the flex column to prevent overlays. */}
+        {/* Uses calc(env(safe-area-inset-bottom) + 1.25rem) to float cleanly and give spacious padding below tab icons. */}
+        <nav 
+          className="md:hidden flex-shrink-0 bg-white border-t border-slate-200 flex justify-around items-center p-2 z-50 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.25rem)' }}
+        >
           <MobileNavItem icon={<Home size={22}/>} label="Home" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
           <MobileNavItem icon={<Camera size={22}/>} label="Vision" isActive={activeTab === 'vision'} onClick={() => setActiveTab('vision')} />
           <MobileNavItem icon={<ShoppingCart size={22}/>} label="List" isActive={activeTab === 'list'} onClick={() => setActiveTab('list')} />
