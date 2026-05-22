@@ -11,7 +11,7 @@ app = FastAPI()
 # 1. Enable CORS so the React app (running on port 5173) can query this server
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://172.16.139.217:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://172.16.139.213:5173", "http://172.16.139.217:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

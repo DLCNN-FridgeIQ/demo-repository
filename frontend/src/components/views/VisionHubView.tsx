@@ -60,8 +60,11 @@ export function VisionHubView() {
     formData.append('file', selectedFile);
 
     try {
-      // Connect to the local FastAPI backend (port 8000)
-      const response = await fetch('http://localhost:8000/detect', {
+      // Dynamically detect the server host to support mobile/network PWA connections
+      const backendHost = window.location.hostname;
+      const backendUrl = `http://${backendHost}:8000/detect`;
+
+      const response = await fetch(backendUrl, {
         method: 'POST',
         body: formData,
       });
