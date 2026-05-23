@@ -7,9 +7,11 @@ import { DashboardView } from '@/components/views/DashboardView';
 import { VisionHubView } from '@/components/views/VisionHubView';
 import { ListView } from '@/components/views/ListView';
 import { AnalyticsView } from '@/components/views/AnalyticsView';
+import type { GroceryItem } from '@/data/priceDatabase';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [groceryList, setGroceryList] = useState<GroceryItem[]>([]);
 
   return (
     // STRICT ROOT CONTAINER: Forces the app to perfectly fit the dynamic screen height and width
@@ -57,8 +59,25 @@ export default function App() {
         {/* No longer needs massive pb-24 because the nav is static inside the flexbox column */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 pb-6 md:pb-10">
           {activeTab === 'dashboard' && <DashboardView onNavigate={setActiveTab} />}
-          {activeTab === 'vision' && <VisionHubView />}
-          {activeTab === 'list' && <ListView />}
+          {activeTab === 'vision' && (
+            <VisionHubView 
+              groceryList={groceryList} 
+              onAddToList={(item) => {
+                if (!groceryList.some(g => g.id === item.id)) {
+                  setGroceryList([...groceryList, item]);
+                }
+              }} 
+            />
+          )}
+          {activeTab === 'list' && (
+            <ListView 
+              groceryList={groceryList} 
+              onRemoveFromList={(itemId) => {
+                setGroceryList(groceryList.filter(g => g.id !== itemId));
+              }}
+              onNavigate={setActiveTab}
+            />
+          )}
           {activeTab === 'analytics' && <AnalyticsView />}
         </main>
 

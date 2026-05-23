@@ -1,6 +1,7 @@
-import { useState, useRef, ChangeEvent } from 'react';
-import { Upload, Loader2, ArrowLeft, RefreshCw, Box } from 'lucide-react';
+import { useState, useRef, type ChangeEvent } from 'react';
+import { Upload, Loader2, ArrowLeft, RefreshCw, Box, AlertCircle, ShoppingCart } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { SUPERMARKET_PRICES, type GroceryItem } from '@/data/priceDatabase';
 
 interface Detection {
   xmin: number;
@@ -12,14 +13,51 @@ interface Detection {
   name: string;
 }
 
-export function VisionHubView() {
+interface VisionHubProps {
+  groceryList: GroceryItem[];
+  onAddToList: (item: GroceryItem) => void;
+}
+
+export function VisionHubView({ groceryList, onAddToList }: VisionHubProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [detections, setDetections] = useState<Detection[]>([]);
+  const [prices, setPrices] = useState<Record<string, { name: string; coles: string; woolworths: string; aldi: string }>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Dynamically calculate missing items from the 12 required fridge staples that were not detected in the scan
+  const missingItems = SUPERMARKET_PRICES.filter((item) => {
+    if (Object.keys(counts).length === 0) return false;
+
+    // The 12 core required staples that should be in the fridge
+    const REQUIRED_STAPLES = [
+      "apple (Loose Royal Gala, each)",
+      "carrot (Loose, each)",
+      "tomato (Roma Loose, each)",
+      "cheese (Cheddar Block, 500g)",
+      "yogurt (Greek Style Plain, 1kg)",
+      "banana (Cavendish, each)",
+      "avocado (Hass, each)",
+      "bread (White Soft Toast, 700g)",
+      "peach (Loose, each)",
+      "fish (Frozen Basa Fillets, 1kg)",
+      "egg (Free Range Large, 12-pack)",
+      "chicken breast (RSPCA Breast Fillet, 1kg)"
+    ];
+
+    const isStaple = REQUIRED_STAPLES.includes(item.name);
+    if (!isStaple) return false;
+
+    const masterName = item.name.toLowerCase();
+    const isFound = Object.keys(counts).some((detectedName) => {
+      const normDetected = detectedName.toLowerCase().trim();
+      return masterName.includes(normDetected) || normDetected.includes(masterName);
+    });
+    return !isFound;
+  });
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -29,6 +67,7 @@ export function VisionHubView() {
       setResultImage(null);
       setCounts({});
       setDetections([]);
+      setPrices({});
     }
   };
 
@@ -45,6 +84,7 @@ export function VisionHubView() {
       setResultImage(null);
       setCounts({});
       setDetections([]);
+      setPrices({});
     }
   };
 
@@ -85,6 +125,7 @@ export function VisionHubView() {
       setResultImage(data.image); // Base64 image with bounding boxes
       setCounts(data.counts);     // Key-value counts of foods detected
       setDetections(data.predictions);
+      setPrices(data.prices || {});
     } catch (error: any) {
       console.error("Error during object detection:", error);
       alert(`Detection Server Error:\n\n${error.message || 'Failed to connect to YOLOv5 backend. Make sure the Python server is running on port 8000.'}`);
@@ -99,6 +140,7 @@ export function VisionHubView() {
     setResultImage(null);
     setCounts({});
     setDetections([]);
+    setPrices({});
   };
 
   return (
@@ -210,16 +252,79 @@ export function VisionHubView() {
                   <p className="text-xs text-slate-400">YOLOv5 couldn't identify any standard foodstuffs in this image.</p>
                 </div>
               ) : (
-                <div className="flex-1 space-y-3 overflow-y-auto max-h-[400px] pr-1">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Detected Inventory ({detections.length})</p>
-                  {Object.entries(counts).map(([name, count]) => (
-                    <div key={name} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-100 rounded-xl hover:border-slate-200 transition-colors">
-                      <span className="font-bold text-slate-800 text-sm capitalize">{name}</span>
-                      <span className="bg-blue-50 text-blue-700 text-xs font-extrabold px-3 py-1 rounded-lg border border-blue-100">
-                        {count} units
-                      </span>
+                <div className="flex-1 flex flex-col space-y-6 overflow-hidden">
+
+                  {/* Found Items Section */}
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Detected Inventory ({Object.keys(counts).length})</p>
+                    <div className="space-y-3 overflow-y-auto max-h-[240px] pr-1">
+                      {Object.entries(counts).map(([name, count]) => {
+                        const priceInfo = prices[name];
+                        return (
+                          <div key={name} className="p-3 bg-slate-50 border border-slate-100 rounded-xl hover:border-slate-200 transition-colors space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-800 text-sm capitalize">{name}</span>
+                              <span className="bg-blue-50 text-blue-700 text-xs font-extrabold px-3 py-1 rounded-lg border border-blue-100">
+                                {count} units
+                              </span>
+                            </div>
+                            {priceInfo && priceInfo.coles !== "N/A" && (
+                              <div className="text-[10px] md:text-xs text-slate-500 bg-white border border-slate-100 rounded-lg p-2.5 space-y-1.5 mt-1.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
+                                <div className="font-semibold text-slate-400 text-[9px] uppercase tracking-wider mb-1 truncate">
+                                  Matched Unit: {priceInfo.name}
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="font-medium text-slate-500">Coles:</span>
+                                  <span className="font-bold text-red-600">{priceInfo.coles}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="font-medium text-slate-500">Woolworths:</span>
+                                  <span className="font-bold text-emerald-600">{priceInfo.woolworths}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="font-medium text-slate-500">ALDI:</span>
+                                  <span className="font-bold text-blue-600">{priceInfo.aldi}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Missing / Low Stock Section */}
+                  <div className="flex-1 flex flex-col min-h-0 border-t border-slate-100 pt-4">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <AlertCircle size={14} className="text-amber-500" /> Missing / Low Stock ({missingItems.length})
+                    </p>
+                    <div className="space-y-2 overflow-y-auto max-h-[260px] pr-1">
+                      {missingItems.map((item) => {
+                        const isAdded = groceryList.some(g => g.id === item.id);
+                        return (
+                          <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50/50 border border-slate-100 rounded-xl hover:border-slate-200 transition-colors">
+                            <div className="flex flex-col pr-2">
+                              <span className="font-bold text-slate-700 text-xs md:text-sm capitalize leading-tight">{item.name}</span>
+                              <span className="text-[9px] text-slate-400 font-medium mt-0.5">{item.category}</span>
+                            </div>
+                            {isAdded ? (
+                              <span className="bg-emerald-50 text-emerald-700 text-[10px] font-extrabold px-2.5 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-1 flex-shrink-0">
+                                Added
+                              </span>
+                            ) : (
+                              <Button
+                                onClick={() => onAddToList(item)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] px-3 py-1.5 h-auto rounded-lg shadow-sm flex-shrink-0 flex items-center gap-1"
+                              >
+                                <ShoppingCart size={10} /> Add
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                 </div>
               )}
             </div>
