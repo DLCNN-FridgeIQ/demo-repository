@@ -1,11 +1,10 @@
 fastapi
 uvicorn
-multipart
 python-multipart
 torch
 torchvision
 pandas
 pillow
-ultralytics
 tqdm
 seaborn
+sqlalchemy

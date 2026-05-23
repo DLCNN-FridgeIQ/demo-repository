@@ -1,47 +1,56 @@
 import { useState } from 'react';
-import { ShoppingCart } from 'lucide-react';
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MOCK_GROCERY_LIST } from "@/data/mockData";
+import { ShoppingCart, Save, CheckCircle2 } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { MOCK_GROCERY_LIST } from '@/data/mockData';
+import { profileService } from '@/services/profileService';
 
-export function ListView() {
-  const [selectedStore, setSelectedStore] = useState<string>('all'); // 'all', 'coles', 'woolies', 'aldi'
+type StoreFilter = 'all' | 'coles' | 'woolies' | 'aldi';
+
+export function ListPage() {
+  const [selectedStore, setSelectedStore] = useState<StoreFilter>('all');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved]   = useState(false);
 
   const totalColes = MOCK_GROCERY_LIST.reduce((sum, item) => sum + item.coles, 0);
   const totalWoolies = MOCK_GROCERY_LIST.reduce((sum, item) => sum + item.woolies, 0);
   const totalAldi = MOCK_GROCERY_LIST.reduce((sum, item) => sum + item.aldi, 0);
 
-  const handleDownloadList = () => {
-    let fileContent = "";
+  const buildListText = (format: 'markdown' | 'whatsapp'): { content: string; total: number } => {
+    let content = '';
     let total = 0;
+    const storeName = selectedStore === 'coles' ? 'Coles' : selectedStore === 'woolies' ? 'Woolworths' : 'Aldi';
+    const isMd = format === 'markdown';
+    const bold = (s: string) => isMd ? `**${s}**` : `*${s}*`;
+    const checkbox = isMd ? '- [ ]' : '☐';
 
     if (selectedStore === 'all') {
-      fileContent = "# FridgIQ Smart Grocery List - Cheapest Overall\n\n";
+      content = `${bold('FridgIQ Smart Grocery List - Cheapest Overall')}\n\n`;
       MOCK_GROCERY_LIST.forEach((item) => {
         const minPrice = Math.min(item.coles, item.woolies, item.aldi);
-        let store = '';
-        if (minPrice === item.coles) store = 'Coles';
-        else if (minPrice === item.woolies) store = 'Woolworths';
-        else store = 'Aldi';
-
-        fileContent += `- [ ] ${item.name} (${store}: $${minPrice.toFixed(2)})\n`;
+        const store = minPrice === item.coles ? 'Coles' : minPrice === item.woolies ? 'Woolworths' : 'Aldi';
+        content += `${checkbox} ${item.name} (${store}: $${minPrice.toFixed(2)})\n`;
         total += minPrice;
       });
-      fileContent += `\n**Total Est. Cheapest Cart:** $${total.toFixed(2)}\n`;
+      content += `\n${bold(`Total Est. Cheapest Cart: $${total.toFixed(2)}`)}`;
     } else {
-      const storeName = selectedStore === 'coles' ? 'Coles' : selectedStore === 'woolies' ? 'Woolworths' : 'Aldi';
-      fileContent = `# FridgIQ Smart Grocery List - ${storeName} Only\n\n`;
+      content = `${bold(`FridgIQ Smart Grocery List - ${storeName} Only`)}\n\n`;
       MOCK_GROCERY_LIST.forEach((item) => {
         const price = selectedStore === 'coles' ? item.coles : selectedStore === 'woolies' ? item.woolies : item.aldi;
-        fileContent += `- [ ] ${item.name} (${storeName}: $${price.toFixed(2)})\n`;
+        content += `${checkbox} ${item.name} (${storeName}: $${price.toFixed(2)})\n`;
         total += price;
       });
-      fileContent += `\n**Total Est. ${storeName} Cart:** $${total.toFixed(2)}\n`;
+      content += `\n${bold(`Total Est. ${storeName} Cart: $${total.toFixed(2)}`)}`;
     }
 
-    const blob = new Blob([fileContent], { type: 'text/markdown;charset=utf-8' });
+    return { content, total };
+  };
+
+  const handleDownloadList = () => {
+    const { content } = buildListText('markdown');
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -53,36 +62,32 @@ export function ListView() {
   };
 
   const handleExportWhatsApp = () => {
-    let whatsappText = "";
-    let total = 0;
+    const { content } = buildListText('whatsapp');
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(content)}`, '_blank');
+  };
 
-    if (selectedStore === 'all') {
-      whatsappText = "*FridgIQ Smart Grocery List - Cheapest Overall*\n\n";
-      MOCK_GROCERY_LIST.forEach((item) => {
-        const minPrice = Math.min(item.coles, item.woolies, item.aldi);
-        let store = '';
-        if (minPrice === item.coles) store = 'Coles';
-        else if (minPrice === item.woolies) store = 'Woolworths';
-        else store = 'Aldi';
-
-        whatsappText += `☐ ${item.name} (${store}: $${minPrice.toFixed(2)})\n`;
-        total += minPrice;
+  const handleSaveToProfile = async () => {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const cheapestTotals = {
+        Coles: totalColes,
+        Woolworths: totalWoolies,
+        Aldi: totalAldi,
+      };
+      const cheapestStore = Object.entries(cheapestTotals).sort((a, b) => a[1] - b[1])[0][0];
+      const title = `Grocery List — ${new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+      await profileService.createGroceryList({
+        title,
+        items: MOCK_GROCERY_LIST as unknown[],
+        estimated_total_cost: Math.min(totalColes, totalWoolies, totalAldi),
+        cheapest_store: cheapestStore,
       });
-      whatsappText += `\n*Total Est. Cheapest Cart:* $${total.toFixed(2)}`;
-    } else {
-      const storeName = selectedStore === 'coles' ? 'Coles' : selectedStore === 'woolies' ? 'Woolworths' : 'Aldi';
-      whatsappText = `*FridgIQ Smart Grocery List - ${storeName} Only*\n\n`;
-      MOCK_GROCERY_LIST.forEach((item) => {
-        const price = selectedStore === 'coles' ? item.coles : selectedStore === 'woolies' ? item.woolies : item.aldi;
-        whatsappText += `☐ ${item.name} (${storeName}: $${price.toFixed(2)})\n`;
-        total += price;
-      });
-      whatsappText += `\n*Total Est. ${storeName} Cart:* $${total.toFixed(2)}`;
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch { /* ignore */ } finally {
+      setSaving(false);
     }
-
-    const encodedText = encodeURIComponent(whatsappText);
-    const url = `https://api.whatsapp.com/send?text=${encodedText}`;
-    window.open(url, '_blank');
   };
 
   return (
@@ -93,11 +98,10 @@ export function ListView() {
           <p className="text-sm md:text-base text-slate-500 mt-1 md:mt-2">Auto-generated based on low/missing stock.</p>
         </div>
 
-        {/* Modern Custom Dropdown */}
         <div className="relative w-full lg:w-64">
           <select
             value={selectedStore}
-            onChange={(e) => setSelectedStore(e.target.value)}
+            onChange={(e) => setSelectedStore(e.target.value as StoreFilter)}
             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none cursor-pointer pr-10"
           >
             <option value="all">Cheapest Overall (Comparison)</option>
@@ -143,27 +147,21 @@ export function ListView() {
                       <TableCell className={`text-center text-slate-600 font-medium text-sm md:text-base py-4 md:py-5 ${selectedStore === 'coles' ? 'bg-red-50/30 border-x border-red-50/50' : ''}`}>
                         {selectedStore === 'coles' || (selectedStore === 'all' && item.coles === minPrice) ? (
                           <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200 font-semibold">${item.coles.toFixed(2)}</Badge>
-                        ) : (
-                          `$${item.coles.toFixed(2)}`
-                        )}
+                        ) : `$${item.coles.toFixed(2)}`}
                       </TableCell>
                     )}
                     {(selectedStore === 'all' || selectedStore === 'woolies') && (
                       <TableCell className={`text-center text-slate-600 font-medium text-sm md:text-base py-4 md:py-5 ${selectedStore === 'woolies' ? 'bg-emerald-50/30 border-x border-emerald-50/50' : ''}`}>
                         {selectedStore === 'woolies' || (selectedStore === 'all' && item.woolies === minPrice) ? (
                           <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 border-emerald-200 font-semibold">${item.woolies.toFixed(2)}</Badge>
-                        ) : (
-                          `$${item.woolies.toFixed(2)}`
-                        )}
+                        ) : `$${item.woolies.toFixed(2)}`}
                       </TableCell>
                     )}
                     {(selectedStore === 'all' || selectedStore === 'aldi') && (
                       <TableCell className={`text-center text-sm md:text-base py-4 md:py-5 ${selectedStore === 'aldi' ? 'bg-blue-50/30 border-x border-blue-50/50 text-slate-600 font-medium' : 'bg-slate-50/50'}`}>
                         {selectedStore === 'aldi' || (selectedStore === 'all' && item.aldi === minPrice) ? (
                           <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200 font-semibold">${item.aldi.toFixed(2)}</Badge>
-                        ) : (
-                          `$${item.aldi.toFixed(2)}`
-                        )}
+                        ) : `$${item.aldi.toFixed(2)}`}
                       </TableCell>
                     )}
                   </TableRow>
@@ -171,19 +169,16 @@ export function ListView() {
               })}
               <TableRow className="hover:bg-transparent">
                 <TableCell className="font-bold text-slate-900 text-right pr-4 md:pr-8 py-4 md:py-6 text-sm md:text-base border-t border-slate-100">Total Est. Cart:</TableCell>
-
                 {(selectedStore === 'all' || selectedStore === 'coles') && (
                   <TableCell className={`text-center font-extrabold text-base md:text-lg border-t border-slate-100 py-4 md:py-6 ${selectedStore === 'coles' ? 'text-red-700 bg-red-100/50 border-x border-red-100' : 'text-slate-600'}`}>
                     ${totalColes.toFixed(2)}
                   </TableCell>
                 )}
-
                 {(selectedStore === 'all' || selectedStore === 'woolies') && (
                   <TableCell className={`text-center font-extrabold text-base md:text-lg border-t border-slate-100 py-4 md:py-6 ${selectedStore === 'woolies' ? 'text-emerald-700 bg-emerald-100/50 border-x border-emerald-100' : 'text-slate-600'}`}>
                     ${totalWoolies.toFixed(2)}
                   </TableCell>
                 )}
-
                 {(selectedStore === 'all' || selectedStore === 'aldi') && (
                   <TableCell className={`text-center font-extrabold text-base md:text-lg border-t border-slate-100 py-4 md:py-6 ${selectedStore === 'aldi' ? 'text-blue-700 bg-blue-100/50 border-x border-blue-100' : selectedStore === 'all' ? 'text-blue-700 bg-blue-50 border-l border-blue-100' : 'text-slate-600'}`}>
                     ${totalAldi.toFixed(2)}
@@ -195,13 +190,23 @@ export function ListView() {
         </div>
       </Card>
 
-      {/* Aligned Side-by-Side Flex Layout */}
       <div className="flex flex-col sm:flex-row justify-end gap-4 mt-6">
         <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md rounded-xl w-full sm:w-auto px-6 py-6" onClick={handleDownloadList}>
           <ShoppingCart className="mr-2 h-5 w-5" /> Export to Notes App
         </Button>
         <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md rounded-xl w-full sm:w-auto px-6 py-6" onClick={handleExportWhatsApp}>
           <ShoppingCart className="mr-2 h-5 w-5" /> Export to WhatsApp
+        </Button>
+        <Button
+          size="lg"
+          disabled={saving || saved}
+          className="bg-slate-900 hover:bg-slate-800 text-white font-bold shadow-md rounded-xl w-full sm:w-auto px-6 py-6 disabled:opacity-70"
+          onClick={handleSaveToProfile}
+        >
+          {saved
+            ? <><CheckCircle2 className="mr-2 h-5 w-5 text-emerald-400" /> Saved!</>
+            : <><Save className="mr-2 h-5 w-5" /> Save to Profile</>
+          }
         </Button>
       </div>
     </div>
