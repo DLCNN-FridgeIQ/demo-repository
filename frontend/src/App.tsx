@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import './App.css';
 
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -13,13 +13,25 @@ import { ListPage } from '@/pages/ListPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { useAuth } from '@/hooks/useAuth';
+import type { GroceryItem } from '@/types';
 
 type UnauthView = 'landing' | 'login' | 'signup';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [unauthView, setUnauthView] = useState<UnauthView>('landing');
+  const [activeTab, setActiveTab]     = useState('dashboard');
+  const [unauthView, setUnauthView]   = useState<UnauthView>('landing');
+  const [groceryList, setGroceryList] = useState<GroceryItem[]>([]);
   const { isAuthenticated, login, register, logout } = useAuth();
+
+  const addToList = useCallback((item: GroceryItem) => {
+    setGroceryList((prev) =>
+      prev.find((i) => i.id === item.id) ? prev : [...prev, item]
+    );
+  }, []);
+
+  const removeFromList = useCallback((id: number) => {
+    setGroceryList((prev) => prev.filter((i) => i.id !== id));
+  }, []);
 
   if (!isAuthenticated) {
     if (unauthView === 'landing') {
@@ -50,8 +62,14 @@ export default function App() {
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 pb-6 md:pb-10">
           {activeTab === 'dashboard' && <DashboardPage onNavigate={setActiveTab} />}
-          {activeTab === 'vision'    && <VisionHubPage />}
-          {activeTab === 'list'      && <ListPage />}
+          {activeTab === 'vision'    && <VisionHubPage onAddToList={addToList} />}
+          {activeTab === 'list'      && (
+            <ListPage
+              groceryList={groceryList}
+              onRemoveFromList={removeFromList}
+              onNavigate={setActiveTab}
+            />
+          )}
           {activeTab === 'analytics' && <AnalyticsPage />}
           {activeTab === 'profile'   && <ProfilePage onLogout={logout} />}
         </main>

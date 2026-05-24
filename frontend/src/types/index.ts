@@ -8,10 +8,20 @@ export interface Detection {
   name: string;
 }
 
+export interface PriceInfo {
+  id: number | null;
+  name: string;
+  category: string;
+  coles: number | null;
+  woolworths: number | null;
+  aldi: number | null;
+}
+
 export interface DetectionResult {
   predictions: Detection[];
   counts: Record<string, number>;
   image: string;
+  prices?: Record<string, PriceInfo>;
 }
 
 export interface GroceryItem {
@@ -21,6 +31,9 @@ export interface GroceryItem {
   coles: number;
   woolies: number;
   aldi: number;
+  colesRange: string;
+  wooliesRange: string;
+  aldiRange: string;
 }
 
 // ── Profile ──────────────────────────────────────────────────────────────────

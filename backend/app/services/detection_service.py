@@ -3,6 +3,7 @@ import base64
 import traceback
 import torch
 from PIL import Image
+from app.data.food_database import lookup_item
 
 _model = None
 _model_error: str | None = None
@@ -52,8 +53,24 @@ def run_detection(image_bytes: bytes) -> dict:
         label = pred["name"]
         counts[label] = counts.get(label, 0) + 1
 
+    prices: dict[str, dict] = {}
+    for label in counts:
+        item = lookup_item(label)
+        if item:
+            prices[label] = dict(item)
+        else:
+            prices[label] = {
+                "id": None,
+                "name": label,
+                "category": "Other",
+                "coles": None,
+                "woolworths": None,
+                "aldi": None,
+            }
+
     return {
         "predictions": predictions,
         "counts": counts,
+        "prices": prices,
         "image": f"data:image/jpeg;base64,{img_b64}",
     }
