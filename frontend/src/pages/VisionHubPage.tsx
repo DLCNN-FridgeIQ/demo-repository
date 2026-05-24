@@ -1,16 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ChangeEvent } from 'react';
-import { Upload, Loader2, ArrowLeft, RefreshCw, Box, Plus, CheckCircle2 } from 'lucide-react';
+import { Upload, Loader2, ArrowLeft, RefreshCw, Box, Plus, CheckCircle2, AlertCircle, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { detectionService } from '@/services/detectionService';
-import { priceInfoToGroceryItem } from '@/data/priceDatabase';
+import { priceInfoToGroceryItem, lookupByLabel, PRICE_DATABASE } from '@/data/priceDatabase';
 import type { Detection, DetectionResult, GroceryItem } from '@/types';
 
+// IDs of the 12 core fridge staples to check after every scan
+const REQUIRED_STAPLE_IDS = new Set([1, 3, 4, 9, 13, 15, 16, 21, 23, 45, 55, 58]);
+
 interface VisionHubPageProps {
+  groceryList: GroceryItem[];
   onAddToList: (item: GroceryItem) => void;
+  onNavigate: (tab: string) => void;
 }
 
-export function VisionHubPage({ onAddToList }: VisionHubPageProps) {
+export function VisionHubPage({ groceryList, onAddToList, onNavigate }: VisionHubPageProps) {
   const [selectedFile, setSelectedFile]   = useState<File | null>(null);
   const [previewUrl, setPreviewUrl]       = useState<string | null>(null);
   const [loading, setLoading]             = useState(false);
@@ -54,7 +59,7 @@ export function VisionHubPage({ onAddToList }: VisionHubPageProps) {
     setResult(null);
   };
 
-  const handleAddToList = (label: string) => {
+  const handleAddDetected = (label: string) => {
     const priceInfo = result?.prices?.[label];
     if (!priceInfo) return;
     const item = priceInfoToGroceryItem(priceInfo);
@@ -63,8 +68,24 @@ export function VisionHubPage({ onAddToList }: VisionHubPageProps) {
     setAddedIds((prev) => new Set([...prev, item.id]));
   };
 
+  const handleAddMissing = (item: GroceryItem) => {
+    onAddToList(item);
+  };
+
   const detections: Detection[] = result?.predictions ?? [];
   const counts: Record<string, number> = result?.counts ?? {};
+
+  const detectedIds = new Set(
+    Object.keys(counts)
+      .map((label) => lookupByLabel(label)?.id)
+      .filter((id): id is number => id != null)
+  );
+  const groceryIds  = new Set(groceryList.map((i) => i.id));
+  const missingItems = result
+    ? PRICE_DATABASE.filter(
+        (item) => REQUIRED_STAPLE_IDS.has(item.id) && !detectedIds.has(item.id)
+      )
+    : [];
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -162,49 +183,99 @@ export function VisionHubPage({ onAddToList }: VisionHubPageProps) {
                   <p className="text-xs text-slate-400">YOLOv5 couldn't identify any standard foodstuffs in this image.</p>
                 </div>
               ) : (
-                <div className="flex-1 space-y-3 overflow-y-auto max-h-[400px] pr-1">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Detected Inventory ({detections.length})</p>
-                  {Object.entries(counts).map(([name, count]) => {
-                    const priceInfo = result.prices?.[name];
-                    const hasPrice  = priceInfo && priceInfo.coles != null;
-                    const minPrice  = hasPrice
-                      ? Math.min(priceInfo!.coles!, priceInfo!.woolworths ?? Infinity, priceInfo!.aldi ?? Infinity)
-                      : null;
-                    const isAdded   = priceInfo?.id != null && addedIds.has(priceInfo.id);
+                <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
 
-                    return (
-                      <div key={name} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl hover:border-slate-200 transition-colors gap-2">
-                        <div className="min-w-0">
-                          <span className="font-bold text-slate-800 text-sm capitalize block truncate">{name}</span>
-                          {hasPrice && minPrice != null && (
-                            <span className="text-xs text-slate-500">Best: ${minPrice.toFixed(2)}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="bg-blue-50 text-blue-700 text-xs font-extrabold px-2.5 py-1 rounded-lg border border-blue-100">
-                            {count}×
-                          </span>
-                          {hasPrice && (
-                            <button
-                              onClick={() => handleAddToList(name)}
-                              disabled={isAdded}
-                              title={isAdded ? 'Added to list' : 'Add to grocery list'}
-                              className={`p-1.5 rounded-lg transition-colors ${
-                                isAdded
-                                  ? 'text-emerald-600 bg-emerald-50 cursor-default'
-                                  : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'
-                              }`}
-                            >
-                              {isAdded ? <CheckCircle2 size={15} /> : <Plus size={15} />}
-                            </button>
-                          )}
-                        </div>
+                  {/* Detected items */}
+                  <div className="flex flex-col min-h-0">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Detected Inventory ({detections.length})</p>
+                    <div className="space-y-2 overflow-y-auto max-h-[220px] pr-1">
+                      {Object.entries(counts).map(([name, count]) => {
+                        const priceInfo = result.prices?.[name];
+                        const hasPrice  = priceInfo && priceInfo.coles != null;
+                        const minPrice  = hasPrice
+                          ? Math.min(priceInfo!.coles!, priceInfo!.woolworths ?? Infinity, priceInfo!.aldi ?? Infinity)
+                          : null;
+                        const isAdded   = priceInfo?.id != null && addedIds.has(priceInfo.id);
+
+                        return (
+                          <div key={name} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl hover:border-slate-200 transition-colors gap-2">
+                            <div className="min-w-0">
+                              <span className="font-bold text-slate-800 text-sm capitalize block truncate">{name}</span>
+                              {hasPrice && minPrice != null && (
+                                <span className="text-xs text-slate-500">Best: ${minPrice.toFixed(2)}</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="bg-blue-50 text-blue-700 text-xs font-extrabold px-2.5 py-1 rounded-lg border border-blue-100">
+                                {count}×
+                              </span>
+                              {hasPrice && (
+                                <button
+                                  onClick={() => handleAddDetected(name)}
+                                  disabled={isAdded}
+                                  title={isAdded ? 'Added to list' : 'Add to grocery list'}
+                                  className={`p-1.5 rounded-lg transition-colors ${
+                                    isAdded
+                                      ? 'text-emerald-600 bg-emerald-50 cursor-default'
+                                      : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'
+                                  }`}
+                                >
+                                  {isAdded ? <CheckCircle2 size={15} /> : <Plus size={15} />}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Missing staples */}
+                  <div className="flex flex-col min-h-0 border-t border-slate-100 pt-4">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <AlertCircle size={13} className="text-amber-500" />
+                      Missing / Low Stock ({missingItems.length})
+                    </p>
+                    {missingItems.length === 0 ? (
+                      <p className="text-xs text-emerald-600 font-semibold">All staples accounted for!</p>
+                    ) : (
+                      <div className="space-y-2 overflow-y-auto max-h-[200px] pr-1">
+                        {missingItems.map((item) => {
+                          const alreadyInList = groceryIds.has(item.id);
+                          return (
+                            <div key={item.id} className="flex items-center justify-between p-3 bg-amber-50/50 border border-amber-100 rounded-xl hover:border-amber-200 transition-colors gap-2">
+                              <div className="min-w-0">
+                                <span className="font-bold text-slate-700 text-xs block truncate capitalize">{item.name}</span>
+                                <span className="text-[10px] text-slate-400 font-medium">{item.category}</span>
+                              </div>
+                              {alreadyInList ? (
+                                <span className="bg-emerald-50 text-emerald-700 text-[10px] font-extrabold px-2.5 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-1 shrink-0">
+                                  <CheckCircle2 size={11} /> In list
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => handleAddMissing(item)}
+                                  title="Add to grocery list"
+                                  className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-colors shrink-0"
+                                >
+                                  <ShoppingCart size={11} /> Add
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                  <p className="text-[10px] text-slate-400 text-center pt-1">
-                    Tap <Plus size={10} className="inline" /> to add items to your grocery list
-                  </p>
+                    )}
+                    {groceryList.length > 0 && (
+                      <button
+                        onClick={() => onNavigate('list')}
+                        className="mt-3 w-full flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2.5 rounded-xl transition-colors"
+                      >
+                        <ShoppingCart size={13} /> View Full List ({groceryList.length})
+                      </button>
+                    )}
+                  </div>
+
                 </div>
               )}
             </div>

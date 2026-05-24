@@ -62,7 +62,7 @@ export default function App() {
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 pb-6 md:pb-10">
           {activeTab === 'dashboard' && <DashboardPage onNavigate={setActiveTab} />}
-          {activeTab === 'vision'    && <VisionHubPage onAddToList={addToList} />}
+          {activeTab === 'vision'    && <VisionHubPage groceryList={groceryList} onAddToList={addToList} onNavigate={setActiveTab} />}
           {activeTab === 'list'      && (
             <ListPage
               groceryList={groceryList}
