@@ -180,8 +180,7 @@ export function ListView({ groceryList, onRemoveFromList, onNavigate }: ListView
                 )}
                 {(selectedStore === 'all' || selectedStore === 'woolies') && (
                   <TableHead className={`text-center text-xs font-bold uppercase tracking-wider py-3 md:py-5 px-2 md:px-4 ${selectedStore === 'woolies' ? 'bg-emerald-50 text-emerald-700 font-extrabold border-x border-emerald-100/50' : 'text-slate-500'}`}>
-                    <span className="hidden sm:inline">Woolworths</span>
-                    <span className="sm:hidden">Woolies</span>
+                    Woolworths
                   </TableHead>
                 )}
                 {(selectedStore === 'all' || selectedStore === 'aldi') && (
