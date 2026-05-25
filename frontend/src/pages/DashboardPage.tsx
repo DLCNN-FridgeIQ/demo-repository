@@ -1,13 +1,11 @@
-import { 
-  Zap, DollarSign, AlertTriangle, ShoppingCart, Camera, ChevronRight, Package, Box 
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Zap, DollarSign, AlertTriangle, ShoppingCart, Camera, ChevronRight, Package, Box } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-interface DashboardViewProps {
+interface DashboardPageProps {
   onNavigate: (tab: string) => void;
 }
 
-export function DashboardView({ onNavigate }: DashboardViewProps) {
+export function DashboardPage({ onNavigate }: DashboardPageProps) {
   return (
     <div className="space-y-6 md:space-y-8 max-w-5xl mx-auto">
       <div>
@@ -15,13 +13,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
         <p className="text-sm md:text-base text-slate-500 mt-1 md:mt-2">Here is the current status of your inventory.</p>
       </div>
 
-      {/* THE MAGIC WRAPPER:
-        grid-cols-1 = Stack one below the other on mobile
-        md:grid-cols-3 = Sit side-by-side in 3 columns on desktop (768px and wider)
-      */}
       <div className="grid grid-rows-1 md:grid-cols-3 gap-6 w-full">
-        
-        {/* Card 1: Est. Inventory Value */}
         <Card className="border-slate-100 shadow-sm rounded-2xl md:rounded-3xl w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-semibold text-slate-500">Est. Inventory Value</CardTitle>
@@ -34,8 +26,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
             <p className="text-xs font-semibold text-emerald-600 mt-1 md:mt-2">+5.2% this week</p>
           </CardContent>
         </Card>
-        
-        {/* Card 2: Items Running Low */}
+
         <Card className="border-amber-100 shadow-sm rounded-2xl md:rounded-3xl bg-white w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-semibold text-slate-500">Items Running Low</CardTitle>
@@ -49,7 +40,6 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           </CardContent>
         </Card>
 
-        {/* Card 3: Projected Budget */}
         <Card className="border-slate-100 shadow-sm rounded-2xl md:rounded-3xl w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-semibold text-slate-500">Projected Budget</CardTitle>
@@ -62,11 +52,9 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
             <p className="text-xs font-semibold text-emerald-600 mt-1 md:mt-2">Based on usual habits</p>
           </CardContent>
         </Card>
-
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-4">
-        {/* Quick Actions */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Zap className="text-amber-400 h-5 w-5 fill-current" />
@@ -96,7 +84,6 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           </div>
         </div>
 
-        {/* Recent Scans */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Package className="text-slate-400 h-5 w-5" />
