@@ -8,3 +8,6 @@ pillow
 tqdm
 seaborn
 sqlalchemy
+ultralytics
+bcrypt
+python-jose
